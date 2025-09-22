@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOCX to XML Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white rounded-xl shadow-2xl p-8 max-w-3xl w-full">
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">DOCX to XML Viewer</h1>
+            <p class="text-gray-500 mb-6">Upload a .docx file to inspect its core XML content.</p>
+        </div>
+
+        <div class="space-y-6">
+            <!-- File Input Section -->
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors duration-200" id="drop-area">
+                <input type="file" id="file-input" class="hidden" accept=".docx">
+                <div class="text-center">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4v-1.5a4 4 0 014-4h.5c.371 0 .736.08 1.077.243m8.943 1.944a4 4 0 01-3.923 1.626C11.666 12.333 10.9 12 10 12h-2.25c-1.8 0-3.25 1.45-3.25 3.25V17a2 2 0 002 2h10a2 2 0 002-2v-2.25c0-1.8-1.45-3.25-3.25-3.25H14c-1.8 0-3.25-1.45-3.25-3.25V5.5c0-1.8 1.45-3.25 3.25-3.25h.5a4 4 0 014 4V16a4 4 0 01-4 4z" />
+                    </svg>
+                    <p class="mt-1 text-sm text-gray-600">
+                        <label for="file-input" class="font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                            <span>Upload a file</span>
+                        </label>
+                        or drag and drop
+                    </p>
+                    <p class="mt-1 text-xs text-gray-500">.docx file format only</p>
+                </div>
+            </div>
+
+            <!-- Status and Output Sections -->
+            <div class="space-y-4">
+                <div id="status-message" class="text-sm font-medium text-gray-700 text-center hidden"></div>
+                <div id="loading-spinner" class="hidden flex justify-center items-center">
+                    <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                
+                <div id="xml-output-container" class="hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-xl font-semibold text-gray-700">XML Content</h2>
+                        <div class="flex space-x-2">
+                            <button id="copy-xml-btn" class="text-gray-500 hover:text-gray-900 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 p-1 rounded-md">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                             <button id="download-xml-btn" class="text-gray-500 hover:text-gray-900 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 p-1 rounded-md">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <pre id="xml-output" class="bg-gray-800 text-gray-200 rounded-lg p-4 overflow-x-auto text-sm max-h-96"></pre>
+                </div>
+
+                 <div id="json-output-container" class="hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-xl font-semibold text-gray-700">Tables as JSON</h2>
+                         <div class="flex space-x-2">
+                             <button id="copy-json-btn" class="text-gray-500 hover:text-gray-900 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 p-1 rounded-md">
+                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                             <button id="download-json-btn" class="text-gray-500 hover:text-gray-900 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 p-1 rounded-md">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <pre id="json-output" class="bg-gray-800 text-gray-200 rounded-lg p-4 overflow-x-auto text-sm max-h-96"></pre>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('file-input');
+            const dropArea = document.getElementById('drop-area');
+            const statusMessage = document.getElementById('status-message');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const xmlOutputContainer = document.getElementById('xml-output-container');
+            const xmlOutput = document.getElementById('xml-output');
+            const jsonOutputContainer = document.getElementById('json-output-container');
+            const jsonOutput = document.getElementById('json-output');
+            const copyXmlBtn = document.getElementById('copy-xml-btn');
+            const copyJsonBtn = document.getElementById('copy-json-btn');
+            const downloadXmlBtn = document.getElementById('download-xml-btn');
+            const downloadJsonBtn = document.getElementById('download-json-btn');
+
+            function showStatus(message, isError = false) {
+                statusMessage.textContent = message;
+                statusMessage.style.color = isError ? 'red' : 'green';
+                statusMessage.classList.remove('hidden');
+            }
+
+            function hideStatus() {
+                statusMessage.classList.add('hidden');
+            }
+
+            function showLoading(show) {
+                if (show) {
+                    loadingSpinner.classList.remove('hidden');
+                } else {
+                    loadingSpinner.classList.add('hidden');
+                }
+            }
+
+            function showXmlOutput(content) {
+                xmlOutput.textContent = content;
+                xmlOutputContainer.classList.remove('hidden');
+            }
+
+            function hideXmlOutput() {
+                xmlOutputContainer.classList.add('hidden');
+                xmlOutput.textContent = '';
+            }
+
+            function showJsonOutput(content) {
+                jsonOutput.textContent = content;
+                jsonOutputContainer.classList.remove('hidden');
+            }
+
+            function hideJsonOutput() {
+                jsonOutputContainer.classList.add('hidden');
+                jsonOutput.textContent = '';
+            }
+            
+            async function processDocxFile(file) {
+                hideStatus();
+                hideXmlOutput();
+                hideJsonOutput();
+                showLoading(true);
+
+                if (file.name.split('.').pop() !== 'docx') {
+                    showStatus('Invalid file type. Please upload a .docx file.', true);
+                    showLoading(false);
+                    return;
+                }
+                
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async function(event) {
+                        try {
+                            const zip = await JSZip.loadAsync(event.target.result);
+                            const xmlFile = zip.file('word/document.xml');
+
+                            if (!xmlFile) {
+                                showStatus('Could not find word/document.xml inside the DOCX file.', true);
+                                showLoading(false);
+                                return;
+                            }
+                            
+                            const xmlContent = await xmlFile.async('string');
+                            showXmlOutput(xmlContent);
+                            showStatus('Successfully extracted XML content!');
+                            
+                            // Process XML for tables
+                            processXmlForTables(xmlContent);
+
+                        } catch (error) {
+                            console.error('Error processing file:', error);
+                            showStatus('Failed to process the file. It may be corrupted.', true);
+                        } finally {
+                            showLoading(false);
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+
+                } catch (error) {
+                    console.error('General file reading error:', error);
+                    showStatus('An unexpected error occurred while reading the file.', true);
+                    showLoading(false);
+                }
+            }
+
+            function processXmlForTables(xmlString) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(xmlString, "application/xml");
+                const namespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+                const tables = doc.getElementsByTagNameNS(namespace, 'tbl');
+                const allTablesJson = [];
+
+                if (tables.length > 0) {
+                    Array.from(tables).forEach(table => {
+                        const newTable = {
+                            question: "",
+                            type: "",
+                            options: [],
+                            solution: "",
+                            marks: {}
+                        };
+                        const rows = table.getElementsByTagNameNS(namespace, 'tr');
+                        Array.from(rows).forEach(row => {
+                            const cells = row.getElementsByTagNameNS(namespace, 'tc');
+                            if (cells.length > 0) {
+                                // Helper function to get text from a cell
+                                const getCellText = (cell) => {
+                                    const textNodes = cell.getElementsByTagNameNS(namespace, 't');
+                                    let cellText = '';
+                                    Array.from(textNodes).forEach(tNode => {
+                                        cellText += tNode.textContent.trim();
+                                    });
+                                    return cellText;
+                                };
+
+                                const firstCellText = getCellText(cells[0]).toLowerCase();
+
+                                if (firstCellText === 'question' && cells.length > 1) {
+                                    newTable.question = getCellText(cells[1]);
+                                } else if (firstCellText === 'type' && cells.length > 1) {
+                                    newTable.type = getCellText(cells[1]);
+                                } else if (firstCellText === 'option' && cells.length > 2) {
+                                    newTable.options.push({
+                                        text: getCellText(cells[1]),
+                                        status: getCellText(cells[2])
+                                    });
+                                } else if (firstCellText === 'solution' && cells.length > 1) {
+                                    newTable.solution = getCellText(cells[1]);
+                                } else if (firstCellText === 'marks' && cells.length > 2) {
+                                    newTable.marks = {
+                                        correct: parseInt(getCellText(cells[1]) || '0', 10),
+                                        incorrect: parseInt(getCellText(cells[2]) || '0', 10)
+                                    };
+                                }
+                            }
+                        });
+                        allTablesJson.push(newTable);
+                    });
+
+                    showJsonOutput(JSON.stringify(allTablesJson, null, 2));
+                } else {
+                    showJsonOutput("No tables found in the document.");
+                }
+            }
+            
+            async function copyToClipboard(text) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showStatus('Copied to clipboard!', false);
+                } catch (err) {
+                    showStatus('Failed to copy: ' + err, true);
+                }
+            }
+
+            function downloadFile(filename, text) {
+                const element = document.createElement('a');
+                const blob = new Blob([text], {type: 'text/plain'});
+                element.href = URL.createObjectURL(blob);
+                element.download = filename;
+                document.body.appendChild(element);
+                element.click();
+                document.body.removeChild(element);
+                showStatus('File downloaded!', false);
+            }
+
+            // Handle file input change
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    processDocxFile(file);
+                }
+            });
+
+            // Handle drag and drop
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.add('ring-4', 'ring-indigo-200', 'ring-inset'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => dropArea.classList.remove('ring-4', 'ring-indigo-200', 'ring-inset'), false);
+            });
+
+            dropArea.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const file = dt.files[0];
+                if (file) {
+                    processDocxFile(file);
+                }
+            }
+
+            // Copy button event listeners
+            copyXmlBtn.addEventListener('click', () => {
+                copyToClipboard(xmlOutput.textContent);
+            });
+
+            copyJsonBtn.addEventListener('click', () => {
+                copyToClipboard(jsonOutput.textContent);
+            });
+
+            // Download button event listeners
+            downloadXmlBtn.addEventListener('click', () => {
+                downloadFile('document.xml', xmlOutput.textContent);
+            });
+
+            downloadJsonBtn.addEventListener('click', () => {
+                downloadFile('tables.json', jsonOutput.textContent);
+            });
+        });
+    </script>
+
+</body>
+</html>
+
