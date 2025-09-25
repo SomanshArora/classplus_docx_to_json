@@ -1,8 +1,12 @@
-We need to create a webapp. 
+We need to create a docker container based webapp. 
 
 The webapp will have a GUI interface and it will accept the docx file. 
 
 The webapp will then convert the file into a xml. 
+
+We are expecting tables to be extracted from the word file's xml. the reference table structure is mentioned later in text. 
+
+The options & question rows sometimes have both text and math equations. so the app should keep the text and convert the math to latex. 
 
 Webapp will read the xml and then traverse through all the tables mentioned in the xml. then convert the table data into a json format data.
 
